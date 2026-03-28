@@ -1,0 +1,1 @@
+{"version":3,"sources":["../src/version.ts"],"sourcesContent":["declare const __MCP_SERVER_VERSION__: string\n\nexport const MCP_SERVER_VERSION: string = typeof __MCP_SERVER_VERSION__ !== 'undefined'\n  ? __MCP_SERVER_VERSION__\n  : '0.0.0'\n"],"mappings":";;;AAEO,IAAM,qBAA6B,OACtC,UACA;","names":[]}

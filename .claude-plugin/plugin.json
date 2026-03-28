@@ -1,0 +1,9 @@
+{
+  "name": "agrune",
+  "version": "0.5.0",
+  "description": "AI 에이전트가 브라우저를 제어할 수 있게 하는 플러그인. MCP 서버와 어노테이션 스킬을 포함한다.",
+  "author": { "name": "agrune" },
+  "repository": "https://github.com/agrune/agrune-plugin",
+  "license": "MIT",
+  "keywords": ["browser-automation", "mcp", "annotation"]
+}
