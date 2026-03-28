@@ -1,0 +1,11 @@
+{
+  "name": "agrune",
+  "owner": { "name": "agrune" },
+  "plugins": [
+    {
+      "name": "agrune",
+      "description": "AI 에이전트가 브라우저를 제어할 수 있게 하는 플러그인",
+      "source": { "source": "github", "repo": "agrune/agrune-plugin" }
+    }
+  ]
+}
