@@ -1,11 +1,11 @@
-# agrune Plugin
+# agrune Skills
 
 AI 에이전트가 브라우저를 제어할 수 있게 하는 Claude Code 플러그인.
 
 ## 설치
 
 ```bash
-claude plugin marketplace add https://github.com/agrune/agrune-marketplace
+claude plugin marketplace add https://github.com/agrune/skills
 claude plugin install agrune@agrune
 ```
 
