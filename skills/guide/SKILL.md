@@ -231,11 +231,16 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 1. agrune_snapshot(groupId="workflow-nodes", mode="full")  → 전체 노드 (canvas 좌표)
 2. 노드 center 좌표와 meta의 edges 정보 확인
 3. 기준 노드 배치: agrune_drag(sourceTargetId="기획", destinationCoords={x:200, y:100})
-4. 상대 배치: agrune_drag(sourceTargetId="디자인", destinationCoords={relativeTo:"기획", dx:150, dy:0})
+4. 나머지 노드는 상대좌표로 배치 (절대좌표 계산 불필요):
+   agrune_drag(sourceTargetId="디자인", destinationCoords={relativeTo:"기획", dx:180, dy:0})
+   agrune_drag(sourceTargetId="개발", destinationCoords={relativeTo:"디자인", dx:180, dy:0})
+   agrune_drag(sourceTargetId="라벨링", destinationCoords={relativeTo:"개발", dx:0, dy:170})
 5. 결과의 movedTarget으로 최종 위치 확인
 6. (선택) agrune_capture로 시각적 결과 검증
 ```
 
-**겹친 노드 처리:** 여러 노드가 같은 위치에 겹쳐있으면 드래그 시 최상위 노드만 잡힌다. `reason: "covered"`인 노드가 여럿이고 center가 동일하면, covered가 아닌 최상위 노드부터 먼저 이동하여 아래 노드를 노출시킨 후 순서대로 이동. 드래그 후 movedTarget의 center가 변하지 않았으면 다른 노드에 가려진 것이므로 최상위 노드를 먼저 옮겨야 한다.
+**상대좌표 우선:** 캔버스 배치 시 기준 노드 1개만 절대좌표로 놓고, 나머지는 `relativeTo`로 배치한다. 같은 행 노드는 동일한 `dy:0`, 분기 노드는 동일한 `dy` 값을 사용하면 자연스럽게 정렬된다.
+
+**겹친 노드 처리:** 여러 노드가 같은 위치에 겹쳐있으면 드래그 시 최상위 노드만 잡힌다. **권장 패턴: agrune_act(click)으로 원하는 노드를 먼저 선택하여 z-order 최상위로 올린 후 agrune_drag로 이동.** 이렇게 하면 겹침과 무관하게 의도한 노드를 확실히 잡을 수 있다. 드래그 후 movedTarget의 center가 변하지 않았으면 다른 노드에 가려진 것이므로 click으로 선택 후 재시도.
 
 **캔버스 타깃이 부족한 그룹 (라벨링 등):** 스냅샷에 조작 대상 타깃이 없으면 `agrune_capture`로 시각 확인 후 작업.
