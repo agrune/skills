@@ -59,21 +59,33 @@ export function StageNode({ data }: NodeProps<Node<WorkflowNodeData>>) {
 - **위치:** `data-agrune-group`과 같은 요소에 배치
 - **값:** `window`에 등록된 전역 함수 이름
 - **용도:** 엣지 연결 정보, 스냅 그리드 설정 등 DOM만으로 알 수 없는 메타데이터 제공
+- **viewport 정보는 포함하지 않는다:** `data-agrune-canvas`가 이미 뷰포트 transform을 스냅샷에 포함하므로 중복 불필요
+
+### React Flow 훅 컨텍스트 주의
+
+> **`useReactFlow()` 등 React Flow 훅은 `<ReactFlow>` 또는 `<ReactFlowProvider>`의 자식 컴포넌트에서만 호출할 수 있다.**
+> `<ReactFlow>`를 렌더링하는 동일 컴포넌트에서 호출하면 zustand provider 에러가 발생한다.
+
+meta 함수 등록 시 **ref 기반 접근**을 사용하면 provider 없이도 최신 상태를 참조할 수 있다:
 
 ```tsx
 function WorkflowEditor() {
-  const instance = useReactFlow()
+  const [edges, setEdges] = useEdgesState(initialEdges)
+  const edgesRef = useRef(edges)
+  edgesRef.current = edges
 
   useEffect(() => {
-    window.getWorkflowMeta = () => ({
-      edges: instance.getEdges().map(e => ({
+    ;(window as Record<string, unknown>).getWorkflowMeta = () => ({
+      edges: edgesRef.current.map(e => ({
+        id: e.id,
         source: e.source,
         target: e.target,
       })),
-      viewport: instance.getViewport(),
     })
-    return () => { delete window.getWorkflowMeta }
-  }, [instance])
+    return () => {
+      delete (window as Record<string, unknown>).getWorkflowMeta
+    }
+  }, [])
 
   return (
     <div
