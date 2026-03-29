@@ -86,7 +86,7 @@ if (args[0] === "--native-host") {
   connectToBackend();
   process.stdin.resume();
 } else if (args[0] === "--backend-daemon") {
-  const { AgagruneBackend } = await import("../backend-TUUUWUXJ.js");
+  const { AgagruneBackend } = await import("../backend-LDQXPNVB.js");
   const backend = new AgagruneBackend();
   let nativeSocket = null;
   const tcpServer = createNetServer((client) => {
@@ -199,7 +199,7 @@ if (args[0] === "--native-host") {
   const { StdioServerTransport } = await import("../stdio-BZMG3GZC.js");
   const { McpServer } = await import("../mcp-3AA7OIIV.js");
   const { createBackendClient } = await import("../backend-client-3UC4NMM2.js");
-  const { registerAgagruneTools } = await import("../mcp-tools-JM5RPH6K.js");
+  const { registerAgagruneTools } = await import("../mcp-tools-GFTTKNS6.js");
   const mcp = new McpServer(
     { name: "agrune", version: MCP_SERVER_VERSION },
     { capabilities: { tools: {} } }

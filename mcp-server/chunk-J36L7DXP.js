@@ -147,7 +147,7 @@ function toPublicSession(session) {
     snapshotVersion: session.snapshot?.version ?? null
   };
 }
-function toPublicTarget(target, includeTextContent, includeRect) {
+function toPublicTarget(target, includeTextContent) {
   return {
     targetId: target.targetId,
     groupId: target.groupId,
@@ -157,7 +157,9 @@ function toPublicTarget(target, includeTextContent, includeRect) {
     ...target.reason !== "ready" ? { reason: target.reason } : {},
     ...target.sensitive ? { sensitive: true } : {},
     ...includeTextContent && target.textContent ? { textContent: target.textContent } : {},
-    ...includeRect && target.rect ? { rect: target.rect } : {}
+    ...target.center ? { center: target.center } : {},
+    ...target.size ? { size: target.size } : {},
+    ...target.coordSpace ? { coordSpace: target.coordSpace } : {}
   };
 }
 function getActiveContext(snapshot) {
@@ -177,6 +179,9 @@ function getActiveContext(snapshot) {
 function toPublicGroups(targets, snapshotGroups) {
   const transformMap = new Map(
     snapshotGroups.filter((g) => g.viewportTransform).map((g) => [g.groupId, g.viewportTransform])
+  );
+  const metaMap = new Map(
+    snapshotGroups.filter((g) => g.meta !== void 0).map((g) => [g.groupId, g.meta])
   );
   const groups = /* @__PURE__ */ new Map();
   for (const target of targets) {
@@ -199,7 +204,8 @@ function toPublicGroups(targets, snapshotGroups) {
     targetCount: group.targets.length,
     actionKinds: [...new Set(group.targets.flatMap((target) => target.actionKinds))],
     sampleTargetNames: group.targets.map((target) => target.name).filter((name) => name.length > 0).slice(0, 3),
-    ...transformMap.has(group.groupId) ? { viewportTransform: transformMap.get(group.groupId) } : {}
+    ...transformMap.has(group.groupId) ? { viewportTransform: transformMap.get(group.groupId) } : {},
+    ...metaMap.has(group.groupId) ? { meta: metaMap.get(group.groupId) } : {}
   }));
 }
 function toPublicSnapshot(snapshot, options = {}) {
@@ -207,15 +213,13 @@ function toPublicSnapshot(snapshot, options = {}) {
   const requestedGroupIds = new Set(options.groupIds ?? []);
   const includeTargets = requestedGroupIds.size > 0 || options.mode === "full";
   const expandedTargets = requestedGroupIds.size > 0 ? activeContext.targets.filter((target) => requestedGroupIds.has(target.groupId)) : activeContext.targets;
-  const includeGroups = !includeTargets;
-  const includeRect = options.includeRect ?? includeTargets;
   return {
     version: snapshot.version,
     url: snapshot.url,
     title: snapshot.title,
     context: activeContext.context,
-    ...includeGroups ? { groups: toPublicGroups(activeContext.targets, snapshot.groups) } : {},
-    ...includeTargets ? { targets: expandedTargets.map((t) => toPublicTarget(t, options.includeTextContent ?? false, includeRect)) } : {}
+    groups: toPublicGroups(activeContext.targets, snapshot.groups),
+    ...includeTargets ? { targets: expandedTargets.map((t) => toPublicTarget(t, options.includeTextContent ?? false)) } : {}
   };
 }
 function toPublicCommandResult(result) {
@@ -511,4 +515,4 @@ export {
   SessionManager,
   AgagruneBackend
 };
-//# sourceMappingURL=chunk-ENJVLIUX.js.map
+//# sourceMappingURL=chunk-J36L7DXP.js.map

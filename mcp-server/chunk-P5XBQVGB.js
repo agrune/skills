@@ -54,14 +54,14 @@ function registerAgagruneTools(mcp, handleToolCall) {
   );
   mcp.tool(
     "agrune_drag",
-    "Drag a source target to a destination. Destination can be another target (destinationTargetId) or viewport coordinates (destinationCoords). Specify exactly one. When ok:true is returned, do not re-snapshot to verify.",
+    "Drag a source target to a destination. Destination can be another target (destinationTargetId) or coordinates (destinationCoords). For canvas groups, coords are in canvas space (auto-converted). Returns movedTarget with final position.",
     {
       sourceTargetId: external_exports.string().describe("Source target ID"),
       destinationTargetId: external_exports.string().optional().describe("Destination target ID"),
       destinationCoords: external_exports.object({
-        x: external_exports.number().describe("Viewport X coordinate"),
-        y: external_exports.number().describe("Viewport Y coordinate")
-      }).optional().describe("Destination viewport coordinates (alternative to destinationTargetId)"),
+        x: external_exports.number().describe("X coordinate (canvas space for canvas groups, viewport otherwise)"),
+        y: external_exports.number().describe("Y coordinate")
+      }).optional().describe("Destination coordinates"),
       placement: external_exports.enum(["before", "inside", "after"]).optional().describe("Drop placement (only with destinationTargetId)"),
       ...optionalTabId
     },
@@ -160,4 +160,4 @@ export {
   toMcpToolResult,
   registerAgagruneTools
 };
-//# sourceMappingURL=chunk-KN4H3WS3.js.map
+//# sourceMappingURL=chunk-P5XBQVGB.js.map

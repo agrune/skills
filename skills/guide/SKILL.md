@@ -50,9 +50,11 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 | `tabId` | number? | 탭 ID (생략 시 활성 탭) |
 
 **사용 패턴:**
-1. 먼저 `mode=outline`으로 그룹 구조 파악
-2. 필요한 그룹만 `groupId`로 확장하여 targetId 획득
+1. 먼저 `mode=outline`으로 그룹 구조 파악 → 그룹 요약 + meta 반환, 개별 타겟 없음
+2. 필요한 그룹만 `groupId`로 확장하여 targetId + `center`/`size`/`coordSpace` 획득
 3. 액션 수행 후 재스냅샷 불필요 — `ok:true` 반환되면 성공
+
+**중요:** `center`/`size`/`coordSpace`는 `groupId` 또는 `mode=full`로 타겟을 확장할 때만 반환된다. outline 모드에서는 그룹 요약만 나온다.
 
 ### agrune_act
 
@@ -175,7 +177,7 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 
 ### 좌표 시스템
 
-타겟 위치는 `center` + `size` + `coordSpace`로 표현:
+타겟 위치는 `center` + `size` + `coordSpace`로 표현된다. **`groupId` 또는 `mode=full`로 타겟을 확장해야만 반환된다** (outline 모드에서는 나오지 않음):
 - `center: { x, y }` — 타겟 중심점
 - `size: { w, h }` — 너비/높이
 - `coordSpace: "viewport" | "canvas"` — 좌표 공간
@@ -184,9 +186,17 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 
 캔버스 그룹의 타겟은 `covered: true`여도 `actionableNow: true` — 겹쳐도 드래그 가능.
 
+**좌표 예시 (캔버스 드래그):**
+```
+스냅샷 결과:  { targetId: "기획", center: {x:50, y:100}, coordSpace: "canvas" }
+드래그 입력:  destinationCoords: {x:200, y:100}  ← canvas 좌표
+드래그 결과:  movedTarget: { center: {x:200, y:100}, coordSpace: "canvas" }
+```
+`destinationCoords`에 canvas 좌표를 넣으면 agrune이 viewport 좌표로 자동 변환한다. 결과의 `movedTarget.center`는 드래그 후 실제 위치(앱의 snap-to-grid 등 반영).
+
 ### 그룹 메타데이터
 
-`data-agrune-meta` 어노테이션이 있는 그룹은 스냅샷에 `meta` 필드가 포함된다. 앱이 제공하는 구조화된 메타데이터(엣지 연결 정보, 스냅 그리드 설정 등)로 레이아웃 판단에 활용.
+`data-agrune-meta` 어노테이션이 있는 그룹은 스냅샷의 `groups[].meta` 필드에 메타데이터가 포함된다. 앱이 제공하는 구조화된 메타데이터(엣지 연결 정보, 스냅 그리드 설정 등)로 레이아웃 판단에 활용. `groups`는 outline 모드와 expanded 모드 모두에서 반환된다.
 
 ## 일반적인 작업 패턴
 
