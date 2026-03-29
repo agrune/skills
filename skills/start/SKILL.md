@@ -1,5 +1,5 @@
 ---
-name: start
+name: agrune:start
 description: agrune 원스톱 온보딩. "agrune 시작", "agrune 셋업", "agrune 설치", "시작", "start", "setup" 등을 말하면 이 스킬을 사용할 것. 환경 검증, Chrome 확장 설치, 어노테이션까지 한 번에 처리한다.
 allowed-tools: Bash(node *), Read, Glob, Grep, Edit, Write, Agent
 ---

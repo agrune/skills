@@ -1,5 +1,5 @@
 ---
-name: annotate
+name: agrune:annotate
 description: agrune 어노테이션을 컴포넌트에 자동으로 추가하는 스킬. "어노테이션 달아줘", "이 컴포넌트를 AI가 제어할 수 있게 해줘", "data-agrune 추가", "프로젝트 전체 어노테이션" 등을 말하면 이 스킬을 사용할 것.
 argument-hint: "[auto|interactive]"
 allowed-tools: Read, Glob, Grep, Edit, Write, Agent

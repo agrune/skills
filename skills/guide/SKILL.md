@@ -1,5 +1,5 @@
 ---
-name: guide
+name: agrune:guide
 description: agrune MCP 도구 레퍼런스. AI가 agrune 도구를 사용할 때 자동으로 참조하는 가이드. 브라우저 자동화, 스냅샷 조회, 요소 제어 방법을 설명한다.
 disable-model-invocation: false
 user-invocable: true
