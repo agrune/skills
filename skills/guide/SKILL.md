@@ -84,11 +84,13 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 |---------|------|------|
 | `sourceTargetId` | string | 잡을 요소 |
 | `destinationTargetId` | string? | 놓을 요소 |
-| `destinationCoords` | `{x, y}`? | 놓을 좌표 (캔버스 그룹이면 canvas 좌표, 아니면 viewport 좌표) |
+| `destinationCoords` | `{x, y}` 또는 `{relativeTo, dx, dy}`? | 놓을 좌표. 절대좌표 `{x,y}` 또는 상대좌표 `{relativeTo: "targetId", dx, dy}`. 캔버스 그룹이면 canvas 좌표 |
 | `placement` | `"before"` \| `"inside"` \| `"after"`? | 드롭 위치 (destinationTargetId 사용 시만) |
 | `tabId` | number? | 탭 ID |
 
-**캔버스 그룹 드래그:** `data-agrune-canvas`가 있는 그룹의 타겟은 `destinationCoords`에 canvas 좌표를 사용한다. agrune이 자동으로 viewport 좌표로 변환. 결과에 `movedTarget: { targetId, center, size, coordSpace }` 포함.
+**캔버스 그룹 드래그:** `data-agrune-canvas`가 있는 그룹의 타겟은 `destinationCoords`에 canvas 좌표를 사용한다. agrune이 자동으로 viewport 변환 및 필요 시 자동 팬을 처리. offscreen 노드도 자동으로 뷰포트 안에 가져온다. 결과에 `movedTarget: { targetId, center, size, coordSpace }` 포함.
+
+**상대좌표:** `destinationCoords: { relativeTo: "기획", dx: 150, dy: 0 }` — 참조 타겟 중심에서 offset만큼 떨어진 위치로 이동. 절대좌표 계산 없이 노드 간 관계만으로 배치 가능.
 
 ### agrune_pointer
 
@@ -108,7 +110,7 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 - `{ type: "pointerup", x, y, delayMs? }` — 릴리스
 - `{ type: "wheel", x, y, deltaY, ctrlKey?, delayMs?, steps?, durationMs? }` — 스크롤/줌. `ctrlKey=true`로 핀치 줌, `steps`로 부드러운 줌
 
-**캔버스 휠:** 캔버스 그룹에서 wheel 액션 사용 시 결과에 `updatedTransform: { groupId, viewportTransform }` 포함. canvas 좌표는 변하지 않으므로 노드 위치 재조회 불필요.
+**캔버스 휠:** 캔버스 그룹에서 wheel 액션으로 줌/팬 가능. canvas 좌표는 줌/팬으로 변하지 않으므로 노드 위치 재조회 불필요.
 
 ### agrune_wait
 
@@ -167,7 +169,7 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 | `AGENT_STOPPED` | 에이전트 중단됨 | 세션 재시작 |
 | `INVALID_TARGET` | 잘못된 타겟 | 타겟 ID 확인 |
 | `INVALID_COMMAND` | 잘못된 명령 | 파라미터 확인 |
-| `OFFSCREEN` | 타겟이 뷰포트 밖 | wheel로 패닝/줌 후 재시도 |
+| `CANVAS_PAN_FAILED` | 캔버스 자동 팬 실패 | 캔버스 라이브러리의 wheel 동작이 예상과 다를 수 있음. agrune_pointer로 수동 팬 시도 |
 
 ## 스냅샷 시스템
 
@@ -182,7 +184,7 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 - `size: { w, h }` — 너비/높이
 - `coordSpace: "viewport" | "canvas"` — 좌표 공간
 
-**캔버스 그룹** (`data-agrune-canvas` 적용)의 타겟은 `coordSpace: "canvas"`로 제공된다. 이 좌표는 줌/패닝과 무관한 절대 위치이므로 정렬/간격 계산에 직접 사용 가능. viewport 밖 타겟도 canvas 좌표로 포함되지만 조작 전 wheel로 뷰 안에 가져와야 한다.
+**캔버스 그룹** (`data-agrune-canvas` 적용)의 타겟은 `coordSpace: "canvas"`로 제공된다. 이 좌표는 줌/패닝과 무관한 절대 위치이므로 정렬/간격 계산에 직접 사용 가능. viewport 밖 타겟도 canvas 좌표로 포함되며, agrune이 조작 시 자동으로 뷰포트를 조정한다.
 
 캔버스 그룹의 타겟은 `covered: true`여도 `actionableNow: true` — 겹쳐도 드래그 가능.
 
@@ -228,6 +230,10 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 ```
 1. agrune_snapshot(groupId="workflow-nodes", mode="full")  → 전체 노드 (canvas 좌표)
 2. 노드 center 좌표와 meta의 edges 정보 확인
-3. agrune_drag(sourceTargetId="기획", destinationCoords={x:200, y:100})  → canvas 좌표로 이동
-4. 결과의 movedTarget으로 최종 위치 확인
+3. 기준 노드 배치: agrune_drag(sourceTargetId="기획", destinationCoords={x:200, y:100})
+4. 상대 배치: agrune_drag(sourceTargetId="디자인", destinationCoords={relativeTo:"기획", dx:150, dy:0})
+5. 결과의 movedTarget으로 최종 위치 확인
+6. (선택) agrune_capture로 시각적 결과 검증
 ```
+
+**캔버스 타깃이 부족한 그룹 (라벨링 등):** 스냅샷에 조작 대상 타깃이 없으면 `agrune_capture`로 시각 확인 후 작업.

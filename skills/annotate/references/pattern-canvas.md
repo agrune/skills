@@ -2,12 +2,12 @@
 
 ## data-agrune-canvas 속성
 
-줌/팬이 있는 캔버스 컨테이너에는 `data-agrune-canvas` 속성을 추가하여 AI가 뷰포트 좌표와 캔버스 내부 좌표를 변환할 수 있게 한다.
+줌/팬이 있는 캔버스 컨테이너에는 `data-agrune-canvas` 속성을 추가하여 agrune 런타임이 뷰포트↔캔버스 좌표 변환을 자동 처리할 수 있게 한다.
 
 - **위치:** `data-agrune-group`과 같은 요소에 배치
 - **값:** 그룹 내부의 transform이 적용된 요소를 가리키는 CSS 선택자
 
-스냅샷에 `viewportTransform: { translateX, translateY, scale }`이 포함되어, AI가 줌/팬 상태에서도 노드를 정확한 위치로 드래그할 수 있다.
+런타임이 내부적으로 transform을 파싱하여 canvas↔viewport 좌표 변환과 자동 팬을 처리한다. AI는 canvas 절대좌표만 사용.
 
 ```tsx
 <div
@@ -61,7 +61,7 @@ export function StageNode({ data }: NodeProps<Node<WorkflowNodeData>>) {
 - **위치:** `data-agrune-group`과 같은 요소에 배치
 - **값:** `window`에 등록된 전역 함수 이름
 - **용도:** 엣지 연결 정보, 스냅 그리드 설정 등 DOM만으로 알 수 없는 메타데이터 제공
-- **viewport 정보는 포함하지 않는다:** `data-agrune-canvas`가 이미 뷰포트 transform을 스냅샷에 포함하므로 중복 불필요
+- **viewport 정보는 포함하지 않는다:** `data-agrune-canvas`가 있으면 런타임이 내부적으로 transform을 파싱한다. meta에 viewport 정보를 넣을 필요 없음
 
 ### React Flow 훅 컨텍스트 주의
 
@@ -105,4 +105,4 @@ function WorkflowEditor() {
 
 ## 줌/팬 조작
 
-캔버스의 줌/팬은 어노테이션이 아니라 `agrune_pointer` 도구의 `wheel` 액션으로 처리된다. 별도 어노테이션 불필요.
+캔버스의 줌/팬은 agrune 런타임이 자동으로 관리한다. 노드가 viewport 밖에 있으면 드래그 시 자동 팬이 실행된다. 수동 줌/팬이 필요하면 `agrune_pointer`의 `wheel` 액션을 사용. 별도 어노테이션 불필요.
