@@ -199,11 +199,66 @@ AI 에이전트는 어노테이션이 달린 요소만 제어할 수 있다. 하
 6. 특수 패턴이 있으면 해당 reference를 읽는다
 7. 어노테이션을 적용한다
 
-### 프로젝트 전체
+### 프로젝트 전체 — 서브에이전트 병렬 처리
 
-1. 프로젝트의 페이지/라우트 구조를 파악한다
-2. 페이지별로 독립적인 서브에이전트를 사용하여 병렬 처리한다
-3. 각 서브에이전트는 해당 페이지의 컴포넌트 트리를 분석하고 어노테이션을 적용한다
-4. 완료 후 전체 결과를 요약한다
+메인 에이전트는 **분석만** 수행하고, 실제 어노테이션은 **서브에이전트에 위임**한다.
+
+#### Phase 1: 분석 (메인 에이전트)
+
+1. 프로젝트의 페이지/라우트 구조를 파악한다 (Glob, Grep 사용)
+2. 각 페이지의 컴포넌트 트리를 식별한다 (import 관계 추적)
+3. 특수 패턴을 감지한다 (import문, 컴포넌트명, 라이브러리 의존성 기반):
+   - DnD/칸반 → `references/pattern-dnd.md`
+   - 캔버스/노드 에디터 → `references/pattern-canvas.md`
+   - Select/드롭다운 → `references/pattern-select.md`
+   - 다단계 폼/위자드 → `references/pattern-wizard.md`
+   - 모달/다이얼로그 → `references/pattern-dialog.md`
+   - 서드파티 커스텀 컴포넌트 → `references/pattern-thirdparty.md`
+4. 공통 UI 컴포넌트(Dialog 닫기 버튼 등)를 식별한다
+5. 서브에이전트 작업 단위를 결정한다
+
+**레퍼런스 문서를 메인 에이전트가 직접 읽지 않는다.** 패턴 감지는 import문과 컴포넌트명으로 충분하다.
+
+#### Phase 2: 서브에이전트 디스패치
+
+작업 단위별로 서브에이전트를 **병렬** 디스패치한다. 각 서브에이전트 프롬프트에 다음을 포함한다:
+
+1. **담당 파일 목록**: 해당 서브에이전트가 어노테이션할 파일 경로
+2. **해당 레퍼런스 경로**: 감지된 패턴에 맞는 reference 파일의 **절대 경로**만 전달 (이 스킬의 base directory 기준)
+3. **프로젝트 컨텍스트**: 사용자가 제공한 프로젝트 설명
+4. **어노테이션 모드**: auto 또는 interactive
+5. **이 스킬의 어노테이션 규칙**: 필수 속성, 선택 속성, action 타입, name/desc 가이드, 그룹 설계 원칙, 커버리지 원칙, 어노테이션 대상 제외 목록
+
+서브에이전트 프롬프트 예시:
+```
+다음 파일에 agrune 어노테이션을 추가하라.
+
+담당 파일:
+- src/components/features/KanbanBoard.tsx
+- src/components/features/TaskDetailDialog.tsx
+
+참조할 레퍼런스 (반드시 읽고 규칙을 적용):
+- /abs/path/to/references/pattern-dnd.md
+- /abs/path/to/references/pattern-dialog.md
+- /abs/path/to/references/pattern-select.md
+
+프로젝트 컨텍스트: 칸반보드 기반 프로젝트 관리 도구
+모드: auto
+
+[어노테이션 규칙 전문]
+```
+
+#### 작업 분배 기준
+
+- **페이지/탭 단위**: 독립된 페이지는 서로 다른 서브에이전트에 할당
+- **공통 UI 컴포넌트**: 별도 서브에이전트 1개에 할당 (dialog.tsx 등)
+- **의존 관계 있는 컴포넌트**: 같은 서브에이전트에 묶기 (KanbanBoard + TaskDetailDialog 등)
+- 서브에이전트 수는 **2~5개**가 적정. 너무 잘게 나누면 오버헤드가 커진다
+
+#### Phase 3: 검증
+
+1. 서브에이전트 완료 후 TypeScript 빌드 확인 (`tsc --noEmit`)
+2. 빌드 에러 시 해당 파일만 수정
+3. 전체 결과를 요약한다
 
 페이지 수가 많으면 중요도가 높은 페이지부터 처리하고, 진행 상황을 알린다.
