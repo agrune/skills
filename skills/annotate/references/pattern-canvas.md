@@ -31,7 +31,9 @@ XYFlow 등에서 커스텀으로 렌더링하는 노드 컴포넌트는 **일반
 | 라이브러리 내부 SVG (엣지, 그리드) | X | 라이브러리가 직접 렌더링, 속성 전달 불가 |
 | 라이브러리 내장 컨트롤 (줌, 미니맵) | X | 줌/팬은 pointer 이벤트로 처리 가능 |
 
-커스텀 노드의 `data-agrune-name`에는 노드의 라벨(동적 값)을 사용. 같은 라이브러리의 여러 노드 타입은 동일 그룹으로 묶는다.
+커스텀 노드의 `data-agrune-name`에는 노드의 라벨(동적 값)을 사용.
+
+**중요: 커스텀 노드는 반드시 캔버스 컨테이너와 동일한 그룹에 소속시켜야 한다.** agrune은 그룹 단위로 캔버스 좌표 공간을 적용한다. 노드가 다른 그룹에 있으면 DOM 상 캔버스 내부에 있더라도 캔버스 좌표(`center`/`size`/`coordSpace: "canvas"`)가 제공되지 않는다. 그룹 이름/설명은 캔버스 컨테이너에만 두면 된다.
 
 ## 코드 예시: 커스텀 노드
 
@@ -42,7 +44,7 @@ export function StageNode({ data }: NodeProps<Node<WorkflowNodeData>>) {
       data-agrune-action="click"
       data-agrune-name={data.label}
       data-agrune-desc="스테이지 노드. 드래그하여 이동, 핸들로 연결"
-      data-agrune-group="workflow-nodes"
+      data-agrune-group="workflow-canvas"
     >
       {data.label}
       <Handle type="target" position={Position.Left} />
