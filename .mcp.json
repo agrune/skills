@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "agrune": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/bin/agrune-mcp.js"]
+    }
+  }
+}
