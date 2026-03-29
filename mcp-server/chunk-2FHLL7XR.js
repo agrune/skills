@@ -177,9 +177,6 @@ function getActiveContext(snapshot) {
   };
 }
 function toPublicGroups(targets, snapshotGroups) {
-  const transformMap = new Map(
-    snapshotGroups.filter((g) => g.viewportTransform).map((g) => [g.groupId, g.viewportTransform])
-  );
   const metaMap = new Map(
     snapshotGroups.filter((g) => g.meta !== void 0).map((g) => [g.groupId, g.meta])
   );
@@ -204,7 +201,6 @@ function toPublicGroups(targets, snapshotGroups) {
     targetCount: group.targets.length,
     actionKinds: [...new Set(group.targets.flatMap((target) => target.actionKinds))],
     sampleTargetNames: group.targets.map((target) => target.name).filter((name) => name.length > 0).slice(0, 3),
-    ...transformMap.has(group.groupId) ? { viewportTransform: transformMap.get(group.groupId) } : {},
     ...metaMap.has(group.groupId) ? { meta: metaMap.get(group.groupId) } : {}
   }));
 }
@@ -515,4 +511,4 @@ export {
   SessionManager,
   AgagruneBackend
 };
-//# sourceMappingURL=chunk-J36L7DXP.js.map
+//# sourceMappingURL=chunk-2FHLL7XR.js.map
