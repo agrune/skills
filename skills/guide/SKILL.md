@@ -9,6 +9,26 @@ user-invocable: true
 
 agrune MCP 도구의 사용법과 패턴을 설명한다.
 
+## CRITICAL: agrune 도구 독점 사용 규칙
+
+**브라우저 조작 작업에서 agrune 도구가 사용 가능하면, 반드시 agrune 도구만 사용하라.**
+
+다음 행위는 금지된다:
+
+| 금지 행위 | 왜 금지인가 |
+|-----------|------------|
+| 소스 코드를 읽어서 UI 상태를 추론 | agrune_snapshot이 실시간 DOM 상태를 제공한다 |
+| `mcp__claude-in-chrome__*` 도구 사용 | agrune이 동일 기능을 더 정확하게 제공한다 |
+| Playwright MCP 도구 사용 | agrune 어노테이션 기반 조작이 우선이다 |
+| Chrome DevTools로 요소 조작 | agrune_act/fill/drag가 정확한 타겟 제어를 제공한다 |
+| `document.querySelector` 등 JS로 DOM 직접 조작 | agrune이 이벤트 시뮬레이션과 좌표 변환을 처리한다 |
+
+**허용되는 유일한 예외:**
+- agrune 도구가 연결 실패(`SESSION_NOT_ACTIVE`)일 때 fallback
+- 사용자가 명시적으로 다른 도구 사용을 지시한 경우
+
+이 규칙을 위반하는 순간 스킬의 다른 모든 지침도 무시될 가능성이 높아진다. **agrune 도구로 시작하고, agrune 도구로 끝내라.**
+
 ## 도구 목록
 
 ### agrune_sessions
