@@ -62,9 +62,11 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 |---------|------|------|
 | `sourceTargetId` | string | 잡을 요소 |
 | `destinationTargetId` | string? | 놓을 요소 |
-| `destinationCoords` | `{x, y}`? | 놓을 뷰포트 좌표 |
+| `destinationCoords` | `{x, y}`? | 놓을 좌표 (캔버스 그룹이면 canvas 좌표, 아니면 viewport 좌표) |
 | `placement` | `"before"` \| `"inside"` \| `"after"`? | 드롭 위치 (destinationTargetId 사용 시만) |
 | `tabId` | number? | 탭 ID |
+
+**캔버스 그룹 드래그:** `data-agrune-canvas`가 있는 그룹의 타겟은 `destinationCoords`에 canvas 좌표를 사용한다. agrune이 자동으로 viewport 좌표로 변환. 결과에 `movedTarget: { targetId, center, size, coordSpace }` 포함.
 
 ### agrune_pointer
 
@@ -83,6 +85,8 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 - `{ type: "pointermove", x, y, delayMs? }` — 포인터 이동
 - `{ type: "pointerup", x, y, delayMs? }` — 릴리스
 - `{ type: "wheel", x, y, deltaY, ctrlKey?, delayMs?, steps?, durationMs? }` — 스크롤/줌. `ctrlKey=true`로 핀치 줌, `steps`로 부드러운 줌
+
+**캔버스 휠:** 캔버스 그룹에서 wheel 액션 사용 시 결과에 `updatedTransform: { groupId, viewportTransform }` 포함. canvas 좌표는 변하지 않으므로 노드 위치 재조회 불필요.
 
 ### agrune_wait
 
@@ -141,12 +145,28 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 | `AGENT_STOPPED` | 에이전트 중단됨 | 세션 재시작 |
 | `INVALID_TARGET` | 잘못된 타겟 | 타겟 ID 확인 |
 | `INVALID_COMMAND` | 잘못된 명령 | 파라미터 확인 |
+| `OFFSCREEN` | 타겟이 뷰포트 밖 | wheel로 패닝/줌 후 재시도 |
 
 ## 스냅샷 시스템
 
 - 각 타겟에는 `reason` 필드: `ready`, `hidden`, `offscreen`, `covered`, `disabled`, `sensitive`
 - `actionableNow=true`인 타겟만 즉시 제어 가능
 - 액션 수행 후 `ok:true`가 반환되면 재스냅샷 불필요. 한 번의 스냅샷으로 여러 액션 수행 가능
+
+### 좌표 시스템
+
+타겟 위치는 `center` + `size` + `coordSpace`로 표현:
+- `center: { x, y }` — 타겟 중심점
+- `size: { w, h }` — 너비/높이
+- `coordSpace: "viewport" | "canvas"` — 좌표 공간
+
+**캔버스 그룹** (`data-agrune-canvas` 적용)의 타겟은 `coordSpace: "canvas"`로 제공된다. 이 좌표는 줌/패닝과 무관한 절대 위치이므로 정렬/간격 계산에 직접 사용 가능. viewport 밖 타겟도 canvas 좌표로 포함되지만 조작 전 wheel로 뷰 안에 가져와야 한다.
+
+캔버스 그룹의 타겟은 `covered: true`여도 `actionableNow: true` — 겹쳐도 드래그 가능.
+
+### 그룹 메타데이터
+
+`data-agrune-meta` 어노테이션이 있는 그룹은 스냅샷에 `meta` 필드가 포함된다. 앱이 제공하는 구조화된 메타데이터(엣지 연결 정보, 스냅 그리드 설정 등)로 레이아웃 판단에 활용.
 
 ## 일반적인 작업 패턴
 
@@ -172,4 +192,12 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 1. agrune_snapshot(groupId="kanban-cards")  → 카드 목록
 2. agrune_snapshot(groupId="kanban-columns")  → 컬럼 목록
 3. agrune_drag(sourceTargetId="카드A", destinationTargetId="Done 컬럼", placement="inside")
+```
+
+### 캔버스 노드 정렬
+```
+1. agrune_snapshot(groupId="workflow-nodes", mode="full")  → 전체 노드 (canvas 좌표)
+2. 노드 center 좌표와 meta의 edges 정보 확인
+3. agrune_drag(sourceTargetId="기획", destinationCoords={x:200, y:100})  → canvas 좌표로 이동
+4. 결과의 movedTarget으로 최종 위치 확인
 ```

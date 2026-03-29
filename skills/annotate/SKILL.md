@@ -53,6 +53,8 @@ start 스킬에서 호출될 때는 이 단계도 자동으로 포함된다.
 | `data-agrune-group-name` | 그룹 표시 이름 |
 | `data-agrune-group-desc` | 그룹 설명 |
 | `data-agrune-sensitive` | 값 없이 속성만 존재해도 동작. 값 미리보기 숨김 (비밀번호 등) |
+| `data-agrune-canvas` | 캔버스 그룹의 transform 요소 CSS 선택자 (줌/팬 변환용) |
+| `data-agrune-meta` | 메타데이터 제공 전역 함수 이름 (엣지 정보 등) |
 
 ## Action 타입 (6가지)
 

@@ -15,6 +15,7 @@
   data-agrune-group-name="워크플로우 캔버스"
   data-agrune-group-desc="워크플로우 노드와 연결 편집"
   data-agrune-canvas=".react-flow__viewport"
+  data-agrune-meta="getWorkflowMeta"
 >
   <ReactFlow nodes={nodes} edges={edges} />
 </div>
@@ -50,6 +51,43 @@ export function StageNode({ data }: NodeProps<Node<WorkflowNodeData>>) {
   )
 }
 ```
+
+## data-agrune-meta 속성
+
+캔버스 그룹에 메타데이터 제공 함수를 지정한다. 스냅샷 시 agrune이 `window[fnName]()`을 호출하여 결과를 그룹의 `meta` 필드에 포함한다.
+
+- **위치:** `data-agrune-group`과 같은 요소에 배치
+- **값:** `window`에 등록된 전역 함수 이름
+- **용도:** 엣지 연결 정보, 스냅 그리드 설정 등 DOM만으로 알 수 없는 메타데이터 제공
+
+```tsx
+function WorkflowEditor() {
+  const instance = useReactFlow()
+
+  useEffect(() => {
+    window.getWorkflowMeta = () => ({
+      edges: instance.getEdges().map(e => ({
+        source: e.source,
+        target: e.target,
+      })),
+      viewport: instance.getViewport(),
+    })
+    return () => { delete window.getWorkflowMeta }
+  }, [instance])
+
+  return (
+    <div
+      data-agrune-group="workflow-canvas"
+      data-agrune-canvas=".react-flow__viewport"
+      data-agrune-meta="getWorkflowMeta"
+    >
+      <ReactFlow nodes={nodes} edges={edges} />
+    </div>
+  )
+}
+```
+
+**오류 처리:** 함수 미등록, 예외 발생, 직렬화 불가 시 `meta: null`로 처리. 앱 동작에 영향 없음.
 
 ## 줌/팬 조작
 
