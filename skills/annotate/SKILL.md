@@ -161,6 +161,30 @@ AI 에이전트는 어노테이션이 달린 요소만 제어할 수 있다. 하
 - 호버 UI가 있으면 `hover`
 - 길게 누르기가 있으면 `longpress`
 
+## 어노테이션 위치 원칙
+
+**어노테이션은 반드시 실제 인터랙티브 DOM 요소에 직접 달아야 한다.** wrapper 요소에 달면 disabled, hidden 등의 상태가 agrune 스냅샷에 반영되지 않는다.
+
+```tsx
+// ❌ BAD — wrapper span에 어노테이션, disabled 상태 반영 안됨
+<span data-agrune-action="click" data-agrune-name="Tagging" data-agrune-desc="...">
+  <Button disabled={!items.length} onClick={handleClick}>Tagging</Button>
+</span>
+
+// ✅ GOOD — 실제 버튼 요소에 직접 어노테이션
+<Button
+  disabled={!items.length}
+  onClick={handleClick}
+  data-agrune-action="click"
+  data-agrune-name="Tagging"
+  data-agrune-desc="선택한 항목에 태그 추가/수정 모달 열기"
+>
+  Tagging
+</Button>
+```
+
+**판단 기준:** 어노테이션할 요소가 브라우저에서 실제로 클릭/입력되는 요소인지 확인한다. `<div>`로 감싼 `<button>`이라면 `<button>`에 달아야 한다. 컴포넌트가 rest props를 DOM에 전파(`{...props}`)하면 사용처에서 `data-agrune-*`를 넣을 수 있다. 전파하지 않으면 컴포넌트 내부를 수정해야 한다.
+
 ## 어노테이션 대상이 아닌 요소
 
 다음만 제외. 이 목록에 없으면 어노테이션 대상이다:
@@ -170,6 +194,121 @@ AI 에이전트는 어노테이션이 달린 요소만 제어할 수 있다. 하
 - 스크롤 영역 자체
 - 서드파티 임베드 (iframe 내부)
 - 서드파티 라이브러리의 내부 렌더링 요소 (SVG 엣지, 내장 컨트롤 등)
+- **영구적으로 숨겨진 요소** (`display: none`, `visibility: hidden`이 항상 적용되는 요소). 프로그래밍적 트리거용 숨겨진 버튼(Bootstrap modal trigger 등)이 대표적 — DOM에 존재하지만 사용자가 직접 조작하는 요소가 아니므로 제외한다. 단, **조건부로 표시/숨김이 토글되는 요소는 제외하지 않는다** — 표시될 때 AI가 제어할 수 있어야 한다.
+
+## 공통 컴포넌트 분석 및 처리
+
+프로젝트에서 가장 많이 누락되는 어노테이션은 **공통/공유 UI 컴포넌트 내부**에 있다. 페이지 컴포넌트만 분석하면 공통 컴포넌트가 내부에서 자체 생성하는 인터랙티브 요소를 놓친다.
+
+### 왜 공통 컴포넌트가 문제인가
+
+```
+페이지 컴포넌트                  공통 컴포넌트 (내부 렌더링)
+─────────────                  ──────────────────────
+<ContentBox                    → <Search>          필터 input/select
+  tableConfig={...}            → <CheckableTable>  체크박스
+  editConfig={...}             → <EditBox>         Save/Cancel/Edit 버튼
+/>                             → <Pagination>      페이지 네비게이션
+                               → <Modal>           닫기/OK/Cancel 버튼
+```
+
+페이지 컴포넌트에서 `data-agrune-*`를 아무리 잘 달아도, 공통 컴포넌트가 **내부에서 직접 생성하는** 버튼/입력/체크박스에는 어노테이션이 전달되지 않는다.
+
+### 공통 컴포넌트 식별 방법
+
+1. **import 체인 추적**: 페이지 컴포넌트의 import를 따라가며 공통 디렉토리(components/atoms, components/molecules, components/organisms, components/ui, lib/ui 등)에서 가져오는 컴포넌트를 식별한다
+2. **내부 렌더링 분석**: 각 공통 컴포넌트를 열어 내부에서 인터랙티브 요소를 자체 생성하는지 확인한다
+3. **props 전파 여부 확인**: `{...props}` 또는 `{...rest}`로 DOM에 전파하면 사용처에서 어노테이션 가능, 아니면 내부 수정 필요
+
+### 3가지 패턴과 처리 방법
+
+#### 패턴 A: Props 전파 — 사용처에서 어노테이션
+
+컴포넌트가 rest props를 DOM 요소에 전파하면, 사용처에서 `data-agrune-*`를 추가할 수 있다.
+
+```tsx
+// 공통 컴포넌트 — rest props 전파
+const Button = ({ children, className, ...props }) => (
+  <button className={className} {...props}>{children}</button>
+)
+
+// 사용처 — 여기서 어노테이션
+<Button
+  onClick={handleSave}
+  data-agrune-action="click"
+  data-agrune-name="Save"
+  data-agrune-desc="변경사항 저장"
+>Save</Button>
+```
+
+#### 패턴 B: 내부 자체 생성 — 공통 컴포넌트 내부 수정
+
+컴포넌트가 내부에서 인터랙티브 요소를 직접 렌더링하면, 해당 컴포넌트 파일을 수정해야 한다.
+
+```tsx
+// ❌ 공통 컴포넌트가 내부에서 버튼 생성 — 사용처에서 제어 불가
+const EditBox = ({ onSave, onCancel }) => (
+  <div className="btn-wrap">
+    <Button onClick={onSave}>Save</Button>      // ← 어노테이션 없음!
+    <Button onClick={onCancel}>Cancel</Button>   // ← 어노테이션 없음!
+  </div>
+)
+
+// ✅ 공통 컴포넌트 내부에 직접 어노테이션 추가
+const EditBox = ({ onSave, onCancel }) => (
+  <div className="btn-wrap">
+    <Button onClick={onSave}
+      data-agrune-action="click"
+      data-agrune-name="Save"
+      data-agrune-desc="변경사항 저장"
+    >Save</Button>
+    <Button onClick={onCancel}
+      data-agrune-action="click"
+      data-agrune-name="Cancel"
+      data-agrune-desc="편집 취소하고 이전 상태로 복원"
+    >Cancel</Button>
+  </div>
+)
+```
+
+#### 패턴 C: Config/Array 기반 동적 렌더링 — 반복문 내에서 어노테이션
+
+컴포넌트가 config 객체나 배열을 받아 인터랙티브 요소를 동적으로 생성하는 패턴이다. 대표적으로 모달의 `buttons` prop, 테이블의 `columns` config 등이 있다.
+
+```tsx
+// 공통 Modal 컴포넌트 — buttons 배열을 받아 렌더링
+const Modal = ({ buttons = [] }) => (
+  <footer>
+    {buttons.map(({ name, ...props }) => (
+      <Button
+        key={name}
+        data-agrune-action="click"
+        data-agrune-name={name}
+        data-agrune-desc={`모달에서 ${name} 실행`}
+        {...props}
+      >{name}</Button>
+    ))}
+  </footer>
+)
+```
+
+### 공통 컴포넌트에서 동적 name 생성
+
+공통 컴포넌트는 여러 곳에서 사용되므로, name이 겹치지 않도록 컨텍스트 정보를 활용한다:
+
+- **버튼**: 버튼 텍스트(name prop, children)를 그대로 사용 (`Save`, `Cancel`, `Edit` 등)
+- **체크박스**: 연관된 데이터의 식별자 사용 (`{item.name} 선택` 등)
+- **필터**: 필터의 prop명이나 label 사용 (`{filter.name} 필터` 등)
+- **테이블 행**: 행 데이터의 고유 식별자 사용 (`{item.name}` 등)
+- **페이지네이션**: 기능 고정이므로 정적 name 사용 (`첫 페이지`, `이전`, `다음` 등)
+
+### 공통 컴포넌트 처리 우선순위
+
+공통 컴포넌트를 **먼저** 처리해야 한다. 공통 컴포넌트 하나를 수정하면 이를 사용하는 모든 페이지에 자동 적용되기 때문이다.
+
+**처리 순서:**
+1. **1순위 — 공통 UI 컴포넌트**: Modal, Dialog, EditBox, Table, Search, Pagination 등
+2. **2순위 — 페이지 고유 컴포넌트**: 각 페이지에서만 사용되는 컴포넌트
 
 ## 특수 패턴 레퍼런스
 
@@ -189,15 +328,17 @@ AI 에이전트는 어노테이션이 달린 요소만 제어할 수 있다. 하
 ### 단일 파일
 
 1. 파일을 읽고 컴포넌트 구조를 파악한다
-2. 인터랙티브 요소를 식별한다:
+2. **import된 공통 컴포넌트를 확인한다**: 해당 파일이 사용하는 공통 컴포넌트를 열어, 내부에서 인터랙티브 요소를 자체 생성하는지 확인한다. 자체 생성하는데 어노테이션이 없으면 공통 컴포넌트도 함께 수정 대상에 포함한다
+3. 인터랙티브 요소를 식별한다:
    - onClick, onSubmit 등 이벤트 핸들러가 있는 요소
    - `<button>`, `<a>`, `<input>`, `<select>`, `<textarea>` 등
    - UI 라이브러리의 인터랙티브 프리미티브 (Radix, MUI 등)
-3. 각 요소에 적절한 action, name, desc를 결정한다
-4. 반복 렌더링 여부를 확인하고, 반복이면 동적 name을 사용한다
-5. 관련 요소들을 그룹으로 묶을지 판단한다
-6. 특수 패턴이 있으면 해당 reference를 읽는다
-7. 어노테이션을 적용한다
+   - 공통 컴포넌트가 내부에서 자체 생성하는 인터랙티브 요소
+4. 각 요소에 적절한 action, name, desc를 결정한다
+5. 반복 렌더링 여부를 확인하고, 반복이면 동적 name을 사용한다
+6. 관련 요소들을 그룹으로 묶을지 판단한다
+7. 특수 패턴이 있으면 해당 reference를 읽는다
+8. 어노테이션을 적용한다
 
 ### 프로젝트 전체 — 서브에이전트 병렬 처리
 
@@ -207,14 +348,18 @@ AI 에이전트는 어노테이션이 달린 요소만 제어할 수 있다. 하
 
 1. 프로젝트의 페이지/라우트 구조를 파악한다 (Glob, Grep 사용)
 2. 각 페이지의 컴포넌트 트리를 식별한다 (import 관계 추적)
-3. 특수 패턴을 감지한다 (import문, 컴포넌트명, 라이브러리 의존성 기반):
+3. **공통 UI 컴포넌트를 식별하고, 내부 렌더링을 분석한다:**
+   - 공통 컴포넌트 디렉토리를 탐색한다 (atoms, molecules, organisms, ui, shared, common, lib 등)
+   - 각 공통 컴포넌트를 열어 **내부에서 인터랙티브 요소를 자체 생성하는지** 확인한다
+   - props 전파 패턴(A), 내부 자체 생성 패턴(B), config/array 동적 렌더링 패턴(C)을 구분한다
+   - 패턴 B, C에 해당하는 공통 컴포넌트 목록을 작성한다 — 이 파일들이 반드시 수정 대상이다
+4. 특수 패턴을 감지한다 (import문, 컴포넌트명, 라이브러리 의존성 기반):
    - DnD/칸반 → `references/pattern-dnd.md`
    - 캔버스/노드 에디터 → `references/pattern-canvas.md`
    - Select/드롭다운 → `references/pattern-select.md`
    - 다단계 폼/위자드 → `references/pattern-wizard.md`
    - 모달/다이얼로그 → `references/pattern-dialog.md`
    - 서드파티 커스텀 컴포넌트 → `references/pattern-thirdparty.md`
-4. 공통 UI 컴포넌트(Dialog 닫기 버튼 등)를 식별한다
 5. 서브에이전트 작업 단위를 결정한다
 
 **레퍼런스 문서를 메인 에이전트가 직접 읽지 않는다.** 패턴 감지는 import문과 컴포넌트명으로 충분하다.
@@ -250,10 +395,11 @@ AI 에이전트는 어노테이션이 달린 요소만 제어할 수 있다. 하
 
 #### 작업 분배 기준
 
+- **공통 UI 컴포넌트 (최우선)**: 반드시 별도 서브에이전트로 **가장 먼저** 디스패치한다. 공통 컴포넌트 수정이 완료되어야 페이지 컴포넌트에서 중복 어노테이션을 피할 수 있다. Phase 1에서 식별한 패턴 B, C 공통 컴포넌트를 모두 이 서브에이전트에 할당한다
 - **페이지/탭 단위**: 독립된 페이지는 서로 다른 서브에이전트에 할당
-- **공통 UI 컴포넌트**: 별도 서브에이전트 1개에 할당 (dialog.tsx 등)
 - **의존 관계 있는 컴포넌트**: 같은 서브에이전트에 묶기 (KanbanBoard + TaskDetailDialog 등)
 - 서브에이전트 수는 **2~5개**가 적정. 너무 잘게 나누면 오버헤드가 커진다
+- **페이지 서브에이전트에 공통 컴포넌트 정보를 전달**: 각 페이지 서브에이전트 프롬프트에 "이미 어노테이션된 공통 컴포넌트 목록"을 포함시켜, 공통 컴포넌트가 내부에서 처리하는 요소에 중복 어노테이션을 달지 않도록 한다
 
 #### Phase 3: 검증
 
