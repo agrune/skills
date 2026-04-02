@@ -1,8 +1,5 @@
 #!/usr/bin/env node
 import { createRequire } from 'module'; const require = createRequire(import.meta.url);
-import {
-  MCP_SERVER_VERSION
-} from "../chunk-SI7YKIOI.js";
 import "../chunk-IGG3I32P.js";
 
 // bin/agrune-mcp.ts
@@ -11,6 +8,11 @@ import { createServer as createNetServer, connect as netConnect } from "net";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
+
+// src/version.ts
+var MCP_SERVER_VERSION = true ? "0.4.1" : "0.0.0";
+
+// bin/agrune-mcp.ts
 var args = process.argv.slice(2);
 var AGRUNE_HOME = join(homedir(), ".agrune");
 var PORT_FILE = join(AGRUNE_HOME, "port");
@@ -69,7 +71,7 @@ if (args[0] === "--native-host") {
     }, RECONNECT_INTERVAL_MS);
   };
   connectToBackend2 = connectToBackend, scheduleReconnect2 = scheduleReconnect;
-  const { createNativeMessagingTransport } = await import("../native-messaging-7DFDIQRA.js");
+  const { createNativeMessagingTransport } = await import("../dist-QSY5IBV2.js");
   const nativeTransport = createNativeMessagingTransport(process.stdin, process.stdout);
   let sock = null;
   let handshakeComplete = false;
@@ -86,8 +88,8 @@ if (args[0] === "--native-host") {
   connectToBackend();
   process.stdin.resume();
 } else if (args[0] === "--backend-daemon") {
-  const { AgagruneBackend } = await import("../backend-K2VIHPKQ.js");
-  const backend = new AgagruneBackend();
+  const { createMcpServer } = await import("../src/index.js");
+  const { driver, handleToolCall } = createMcpServer();
   let nativeSocket = null;
   const tcpServer = createNetServer((client) => {
     client.setEncoding("utf8");
@@ -96,7 +98,7 @@ if (args[0] === "--native-host") {
     const detachNativeSocket = () => {
       if (nativeSocket === client) {
         nativeSocket = null;
-        backend.setNativeSender(null);
+        driver.setNativeSender(null);
         process.stderr.write("[agrune-backend] native host disconnected\n");
       }
     };
@@ -125,7 +127,7 @@ if (args[0] === "--native-host") {
               nativeSocket.destroy();
             }
             nativeSocket = client;
-            backend.setNativeSender((msg) => {
+            driver.setNativeSender((msg) => {
               if (!client.destroyed) {
                 client.write(JSON.stringify(msg) + "\n");
               }
@@ -135,14 +137,14 @@ if (args[0] === "--native-host") {
           continue;
         }
         if (role === "native-host") {
-          backend.handleNativeMessage(parsed);
+          driver.handleNativeMessage(parsed);
           continue;
         }
         if (parsed.type !== "agent_request" || typeof parsed.requestId !== "string" || typeof parsed.name !== "string") {
           client.write(JSON.stringify({ type: "backend_error", message: "invalid agent request" }) + "\n");
           continue;
         }
-        void backend.handleToolCall(parsed.name, asRecord(parsed.args)).then((result) => {
+        void handleToolCall(parsed.name, asRecord(parsed.args)).then((result) => {
           if (!client.destroyed) {
             client.write(JSON.stringify({
               type: "agent_response",
@@ -191,15 +193,15 @@ if (args[0] === "--native-host") {
     process.exit(0);
   };
   let idleTimer = setTimeout(shutdown, IDLE_TIMEOUT_MS);
-  backend.onActivity = () => {
+  driver.onActivity = () => {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(shutdown, IDLE_TIMEOUT_MS);
   };
 } else {
   const { StdioServerTransport } = await import("../stdio-BZMG3GZC.js");
   const { McpServer } = await import("../mcp-3AA7OIIV.js");
-  const { createBackendClient } = await import("../backend-client-3UC4NMM2.js");
-  const { registerAgagruneTools } = await import("../mcp-tools-6SHQK5ZA.js");
+  const { createBackendClient } = await import("../backend-client-DHS3AZR5.js");
+  const { registerAgruneTools } = await import("../mcp-tools-DDAIIRWN.js");
   const mcp = new McpServer(
     { name: "agrune", version: MCP_SERVER_VERSION },
     { capabilities: { tools: {} } }
@@ -214,7 +216,7 @@ if (args[0] === "--native-host") {
       return client.callTool(name, toolArgs);
     }
   }
-  registerAgagruneTools(mcp, callToolWithReconnect);
+  registerAgruneTools(mcp, callToolWithReconnect);
   const transport = new StdioServerTransport();
   await mcp.connect(transport);
 }
@@ -228,7 +230,7 @@ function readBackendPort() {
   return Number.isFinite(parsed) ? parsed : BACKEND_PORT;
 }
 async function ensureBackendDaemon() {
-  const { createBackendClient } = await import("../backend-client-3UC4NMM2.js");
+  const { createBackendClient } = await import("../backend-client-DHS3AZR5.js");
   const backendClient = createBackendClient({ host: BACKEND_HOST, port: readBackendPort(), timeoutMs: 500 });
   try {
     await backendClient.ping();

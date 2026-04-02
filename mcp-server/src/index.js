@@ -1,27 +1,114 @@
 import { createRequire } from 'module'; const require = createRequire(import.meta.url);
 import {
-  registerAgagruneTools
-} from "../chunk-DAYSMFHP.js";
-import {
-  MCP_SERVER_VERSION
-} from "../chunk-SI7YKIOI.js";
-import {
-  createNativeMessagingTransport,
-  decodeMessages,
-  encodeMessage
-} from "../chunk-ZSQJYS5R.js";
-import {
-  AgagruneBackend,
-  CommandQueue,
-  SessionManager
-} from "../chunk-2FHLL7XR.js";
+  ExtensionDriver,
+  createNativeMessagingTransport
+} from "../chunk-5ZGCGCEK.js";
 import {
   McpServer
 } from "../chunk-D7MBH6AY.js";
+import {
+  registerAgruneTools
+} from "../chunk-DDGCW5LN.js";
 import "../chunk-WOQ5QXUZ.js";
 import "../chunk-APXANOE3.js";
 import "../chunk-J5GXOUVN.js";
 import "../chunk-IGG3I32P.js";
+
+// src/public-shapes.ts
+function toPublicSession(session) {
+  return {
+    tabId: session.tabId,
+    url: session.url,
+    title: session.title || session.snapshot?.title || "",
+    hasSnapshot: session.snapshot !== null,
+    snapshotVersion: session.snapshot?.version ?? null
+  };
+}
+function toPublicTarget(target, includeTextContent) {
+  return {
+    targetId: target.targetId,
+    groupId: target.groupId,
+    name: target.name,
+    description: target.description,
+    actionKinds: target.actionKinds,
+    ...target.reason !== "ready" ? { reason: target.reason } : {},
+    ...target.sensitive ? { sensitive: true } : {},
+    ...includeTextContent && target.textContent ? { textContent: target.textContent } : {},
+    ...target.center ? { center: target.center } : {},
+    ...target.size ? { size: target.size } : {},
+    ...target.coordSpace ? { coordSpace: target.coordSpace } : {}
+  };
+}
+function getActiveContext(snapshot) {
+  const actionableTargets = snapshot.targets.filter((target) => target.actionableNow);
+  const overlayTargets = actionableTargets.filter((target) => target.overlay);
+  if (overlayTargets.length > 0) {
+    return {
+      context: "overlay",
+      targets: overlayTargets
+    };
+  }
+  return {
+    context: "page",
+    targets: actionableTargets
+  };
+}
+function toPublicGroups(targets, snapshotGroups) {
+  const metaMap = new Map(
+    snapshotGroups.filter((g) => g.meta !== void 0).map((g) => [g.groupId, g.meta])
+  );
+  const groups = /* @__PURE__ */ new Map();
+  for (const target of targets) {
+    const existing = groups.get(target.groupId);
+    if (existing) {
+      existing.targets.push(target);
+      continue;
+    }
+    groups.set(target.groupId, {
+      groupId: target.groupId,
+      groupName: target.groupName,
+      groupDesc: target.groupDesc,
+      targets: [target]
+    });
+  }
+  return Array.from(groups.values()).map((group) => ({
+    groupId: group.groupId,
+    groupName: group.groupName,
+    groupDesc: group.groupDesc,
+    targetCount: group.targets.length,
+    actionKinds: [...new Set(group.targets.flatMap((target) => target.actionKinds))],
+    sampleTargetNames: group.targets.map((target) => target.name).filter((name) => name.length > 0).slice(0, 3),
+    ...metaMap.has(group.groupId) ? { meta: metaMap.get(group.groupId) } : {}
+  }));
+}
+function toPublicSnapshot(snapshot, options = {}) {
+  const activeContext = getActiveContext(snapshot);
+  const requestedGroupIds = new Set(options.groupIds ?? []);
+  const includeTargets = requestedGroupIds.size > 0 || options.mode === "full";
+  const expandedTargets = requestedGroupIds.size > 0 ? activeContext.targets.filter((target) => requestedGroupIds.has(target.groupId)) : activeContext.targets;
+  return {
+    version: snapshot.version,
+    url: snapshot.url,
+    title: snapshot.title,
+    context: activeContext.context,
+    ...requestedGroupIds.size === 0 ? { groups: toPublicGroups(activeContext.targets, snapshot.groups) } : {},
+    ...includeTargets ? { targets: expandedTargets.map((t) => toPublicTarget(t, options.includeTextContent ?? false)) } : {}
+  };
+}
+function toPublicCommandResult(result) {
+  if (result.ok) {
+    return {
+      commandId: result.commandId,
+      ok: true,
+      ...result.result ? { result: result.result } : {}
+    };
+  }
+  return {
+    commandId: result.commandId,
+    ok: false,
+    error: result.error
+  };
+}
 
 // src/tools.ts
 function getToolDefinitions() {
@@ -168,39 +255,88 @@ function getToolDefinitions() {
 
 // src/index.ts
 function createMcpServer() {
-  const backend = new AgagruneBackend();
-  let nativeTransport = null;
+  const driver = new ExtensionDriver();
   const mcp = new McpServer(
-    { name: "agrune", version: MCP_SERVER_VERSION },
+    { name: "agrune", version: true ? "0.4.1" : "0.0.0" },
     { capabilities: { tools: {} } }
   );
-  registerAgagruneTools(mcp, (name, args) => backend.handleToolCall(name, args));
+  const handleToolCall = async (name, args) => {
+    driver.onActivity?.();
+    if (name !== "agrune_config") {
+      const readyError = await driver.ensureReady();
+      if (readyError) return { text: readyError, isError: true };
+    }
+    const tabId = driver.resolveTabId(args.tabId);
+    switch (name) {
+      case "agrune_sessions": {
+        const sessions = driver.sessions.getSessions();
+        return { text: JSON.stringify(sessions.map(toPublicSession), null, 2) };
+      }
+      case "agrune_snapshot": {
+        if (tabId == null) return { text: "No active sessions.", isError: true };
+        const snapshot = driver.getSnapshot(tabId);
+        if (!snapshot) return { text: `No snapshot available for tab ${tabId}.`, isError: true };
+        return { text: JSON.stringify(toPublicSnapshot(snapshot, resolveSnapshotOptions(args)), null, 2) };
+      }
+      case "agrune_act":
+      case "agrune_fill":
+      case "agrune_drag":
+      case "agrune_pointer":
+      case "agrune_wait":
+      case "agrune_guide":
+      case "agrune_read": {
+        if (tabId == null) return { text: "No active sessions.", isError: true };
+        const command = {
+          kind: name.replace("agrune_", ""),
+          ...args
+        };
+        delete command.tabId;
+        const result = await driver.execute(tabId, command);
+        return { text: JSON.stringify(toPublicCommandResult(result), null, 2) };
+      }
+      case "agrune_config": {
+        const config = {};
+        if (typeof args.pointerAnimation === "boolean") config.pointerAnimation = args.pointerAnimation;
+        if (typeof args.auroraGlow === "boolean") config.auroraGlow = args.auroraGlow;
+        if (typeof args.auroraTheme === "string") config.auroraTheme = args.auroraTheme;
+        if (typeof args.clickDelayMs === "number") config.clickDelayMs = args.clickDelayMs;
+        if (typeof args.pointerDurationMs === "number") config.pointerDurationMs = args.pointerDurationMs;
+        if (typeof args.autoScroll === "boolean") config.autoScroll = args.autoScroll;
+        if (Object.keys(config).length > 0) driver.sendRaw({ type: "config_update", config });
+        return { text: "Configuration updated." };
+      }
+      default:
+        return { text: `Unknown tool: ${name}`, isError: true };
+    }
+  };
+  registerAgruneTools(mcp, handleToolCall);
   function connectNativeMessaging(input, output) {
-    nativeTransport = createNativeMessagingTransport(input, output);
-    backend.setNativeSender((msg) => {
-      nativeTransport.send(msg);
-    });
-    nativeTransport.onMessage((msg) => {
-      backend.handleNativeMessage(msg);
-    });
-    return nativeTransport;
+    const transport = createNativeMessagingTransport(input, output);
+    driver.setNativeSender(transport.send);
+    transport.onMessage((msg) => driver.handleNativeMessage(msg));
+    return transport;
+  }
+  return { server: mcp, driver, handleToolCall, connectNativeMessaging };
+}
+function resolveSnapshotOptions(args) {
+  const groupIds = /* @__PURE__ */ new Set();
+  if (typeof args.groupId === "string" && args.groupId.trim()) groupIds.add(args.groupId.trim());
+  if (Array.isArray(args.groupIds)) {
+    for (const value of args.groupIds) {
+      if (typeof value === "string" && value.trim()) groupIds.add(value.trim());
+    }
   }
   return {
-    server: mcp,
-    sessions: backend.sessions,
-    commands: backend.commands,
-    connectNativeMessaging,
-    backend
+    mode: args.mode === "full" ? "full" : "outline",
+    ...groupIds.size > 0 ? { groupIds: [...groupIds] } : {},
+    ...args.includeTextContent === true ? { includeTextContent: true } : {}
   };
 }
 export {
-  AgagruneBackend,
-  CommandQueue,
-  SessionManager,
+  ExtensionDriver,
   createMcpServer,
   createNativeMessagingTransport,
-  decodeMessages,
-  encodeMessage,
-  getToolDefinitions
+  getToolDefinitions,
+  registerAgruneTools
 };
 //# sourceMappingURL=index.js.map

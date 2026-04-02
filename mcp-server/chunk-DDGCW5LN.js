@@ -10,7 +10,7 @@ function toMcpToolResult(result) {
     ...result.isError ? { isError: true } : {}
   };
 }
-function registerAgagruneTools(mcp, handleToolCall) {
+function registerAgruneTools(mcp, handleToolCall) {
   const optionalTabId = {
     tabId: external_exports.number().optional().describe("Tab ID (omit for active tab)")
   };
@@ -165,6 +165,6 @@ function registerAgagruneTools(mcp, handleToolCall) {
 
 export {
   toMcpToolResult,
-  registerAgagruneTools
+  registerAgruneTools
 };
-//# sourceMappingURL=chunk-DAYSMFHP.js.map
+//# sourceMappingURL=chunk-DDGCW5LN.js.map

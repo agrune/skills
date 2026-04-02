@@ -1,13 +1,21 @@
 import { createRequire } from 'module'; const require = createRequire(import.meta.url);
 import {
+  ActivityBlockStack,
+  CommandQueue,
+  ExtensionDriver,
+  SessionManager,
   createNativeMessagingTransport,
   decodeMessages,
   encodeMessage
-} from "./chunk-ZSQJYS5R.js";
+} from "./chunk-5ZGCGCEK.js";
 import "./chunk-IGG3I32P.js";
 export {
+  ActivityBlockStack,
+  CommandQueue,
+  ExtensionDriver,
+  SessionManager,
   createNativeMessagingTransport,
   decodeMessages,
   encodeMessage
 };
-//# sourceMappingURL=native-messaging-7DFDIQRA.js.map
+//# sourceMappingURL=dist-QSY5IBV2.js.map
