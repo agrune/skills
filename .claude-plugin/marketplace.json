@@ -8,12 +8,12 @@
   "plugins": [
     {
       "name": "agrune",
-      "description": "AI 에이전트가 브라우저를 제어할 수 있게 하는 플러그인. MCP 서버와 어노테이션 스킬을 포함한다.",
+      "description": "AI 에이전트가 브라우저를 제어할 수 있게 하는 플러그인. Agrune MCP 패키지와 manifest authoring 스킬을 연결한다.",
       "source": "./",
       "strict": false,
       "skills": [
-        "./skills/start",
-        "./skills/annotate",
+        "./skills/setup",
+        "./skills/manifest",
         "./skills/guide"
       ]
     }

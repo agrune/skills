@@ -165,7 +165,7 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
 | `NOT_VISIBLE` | 타겟이 보이지 않음 | 스크롤 또는 오버레이 확인 |
 | `DISABLED` | 타겟이 비활성 | 선행 조건 충족 후 재시도 |
 | `TIMEOUT` | 대기 시간 초과 | 조건 확인 후 재시도 |
-| `SESSION_NOT_ACTIVE` | 브라우저 세션 없음 | 페이지 새로고침 |
+| `SESSION_NOT_ACTIVE` | 브라우저 세션 없음 | quick mode 브라우저에서 대상 페이지를 열거나 새로고침. 연결 경로 자체가 없으면 MCP 재시작 |
 | `AGENT_STOPPED` | 에이전트 중단됨 | 세션 재시작 |
 | `INVALID_TARGET` | 잘못된 타겟 | 타겟 ID 확인 |
 | `INVALID_COMMAND` | 잘못된 명령 | 파라미터 확인 |
@@ -236,11 +236,17 @@ agrune MCP 도구의 사용법과 패턴을 설명한다.
    agrune_drag(sourceTargetId="개발", destinationCoords={relativeTo:"디자인", dx:180, dy:0})
    agrune_drag(sourceTargetId="라벨링", destinationCoords={relativeTo:"개발", dx:0, dy:170})
 5. 결과의 movedTarget으로 최종 위치 확인
-6. (선택) agrune_capture로 시각적 결과 검증
+6. (선택) agrune_guide로 타깃을 하이라이트하거나 agrune_snapshot으로 최종 위치 재확인
 ```
 
 **상대좌표 우선:** 캔버스 배치 시 기준 노드 1개만 절대좌표로 놓고, 나머지는 `relativeTo`로 배치한다. 같은 행 노드는 동일한 `dy:0`, 분기 노드는 동일한 `dy` 값을 사용하면 자연스럽게 정렬된다.
 
 **겹친 노드 처리:** 여러 노드가 같은 위치에 겹쳐있으면 드래그 시 최상위 노드만 잡힌다. **권장 패턴: agrune_act(click)으로 원하는 노드를 먼저 선택하여 z-order 최상위로 올린 후 agrune_drag로 이동.** 이렇게 하면 겹침과 무관하게 의도한 노드를 확실히 잡을 수 있다. 드래그 후 movedTarget의 center가 변하지 않았으면 다른 노드에 가려진 것이므로 click으로 선택 후 재시도.
 
-**캔버스 타깃이 부족한 그룹 (라벨링 등):** 스냅샷에 조작 대상 타깃이 없으면 `agrune_capture`로 시각 확인 후 작업.
+**캔버스 타깃이 부족한 그룹 (라벨링 등):** 스냅샷에 조작 대상 타깃이 부족하면 `agrune_guide`로 위치를 하이라이트하거나 `agrune_read`로 주변 컨텍스트를 읽어 보조 판단한다.
+
+## 연결 모델 요약
+
+- agrune는 CDP(Chrome DevTools Protocol) 단일 경로다. `agrune` CLI가 Chrome을 launch/attach/headless 모드 중 하나로 띄우고, MCP 서버가 그 세션에 붙는다.
+- `SESSION_NOT_ACTIVE`가 나면 먼저 agrune가 관리하는 Chrome 창이 실제로 떠 있는지, 그 창에 대상 페이지가 열려 있는지 확인한다.
+- 과거의 browser extension 모드는 v0.5에서 완전 제거됐다. 이제 이 경로는 존재하지 않는다.
